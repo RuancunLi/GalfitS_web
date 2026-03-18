@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Editor - GalfitS Web</title>
+    <style>
+        :root {
+            --bg: #f4f4f4;
+            --panel: #ffffff;
+            --text: #222;
+            --line: #d2d2d2;
+            --button: #35424a;
+            --button-hover: #45a049;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+        }
+        .container {
+            width: min(95vw, 1600px);
+            margin: 16px auto;
+            overflow: hidden;
+            max-height: 100vh;
+        }
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .topbar a {
+            color: #126a72;
+            text-decoration: none;
+            font-weight: 700;
+        }
+        h1 {
+            margin: 0;
+            font-size: 1.6rem;
+        }
+        h2 {
+            margin: 0 0 10px;
+            font-size: 1.1rem;
+        }
+        #upload-form {
+            background: var(--panel);
+            padding: 12px;
+            border-radius: 6px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        #upload-form label {
+            white-space: nowrap;
+        }
+        #upload-form input[type="text"] {
+            flex: 1;
+            min-width: 250px;
+            margin: 0;
+            width: auto;
+        }
+        #upload-form button {
+            margin: 0;
+            white-space: nowrap;
+        }
+        label {
+            font-weight: 700;
+        }
+        input[type="text"], button {
+            padding: 10px;
+            margin: 8px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        input[type="text"] {
+            width: 100%;
+        }
+        button {
+            background: var(--button);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background: var(--button-hover);
+        }
+        .workspace-shell {
+            display: grid;
+            gap: 12px;
+            height: calc(100vh - 190px);
+            min-height: 520px;
+            --param-cols: 3;
+        }
+        .workspace-shell.split-mode {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr;
+        }
+        .workspace-shell.stack-mode {
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+        .panel {
+            background: var(--panel);
+            border-radius: 6px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--line);
+            padding: 12px;
+            overflow: auto;
+            min-width: 0;
+            min-height: 0;
+            /* Prevent grid collapse */
+        }
+        #model-images-grid {
+            display: block;
+            margin-top: 10px;
+        }
+        .model-image-card {
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: #fff;
+            padding: 8px;
+        }
+        .model-image-title {
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-bottom: 6px;
+        }
+        .model-image-card img {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ccc;
+            display: block;
+        }
+        .parameter-component {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 12px;
+            background: #fafafa;
+            min-width: 0;
+        }
+        .parameter-component legend {
+            font-weight: 700;
+            padding: 0 6px;
+        }
+        .params-grid {
+            display: grid;
+            grid-template-columns: repeat(var(--param-cols), minmax(0, 1fr));
+            gap: 8px;
+        }
+        .parameter-row {
+            margin: 6px 0;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 6px;
+        }
+        .parameter-row label {
+            display: block;
+            font-size: 0.63rem;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .parameter-row input[type="text"] {
+            width: 65%;
+            font-size: 0.82rem;
+            padding: 6px 8px;
+        }
+        .preview-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .subcomponent-title {
+            margin: 12px 0 6px;
+            font-size: 0.95rem;
+            color: #2b3f4a;
+        }
+        #recalculate-button {
+            width: 100%;
+            font-size: 1rem;
+            padding: 12px;
+            margin-top: 10px;
+        }
+        @media (max-width: 800px) {
+            .workspace-shell.split-mode,
+            .workspace-shell.stack-mode {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto;
+                height: auto;
+            }
+            .workspace-shell {
+                --param-cols: 2;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="topbar">
+            <h1>GalfitS Model Editor</h1>
+            <a href="/">Back to Tool List</a>
+        </div>
+
+        <form id="upload-form">
+            <label for="lyric-path">Input absolute .lyric path:</label>
+            <input type="text" id="lyric-path" name="lyric_path" placeholder="/Users/liruancun/.../target.lyric" required>
+            <button type="submit">Load</button>
+        </form>
+
+        <div id="workspace-shell" class="workspace-shell split-mode">
+            <section id="model-image-container" class="panel preview-panel">
+                <div class="preview-header">
+                    <h2>Current Fit Overview</h2>
+                    <button id="sed-toggle-btn" type="button" style="display:none;">SED</button>
+                </div>
+                <div id="model-images-grid"></div>
+            </section>
+
+            <section id="parameters-container" class="panel parameter-panel">
+                <h2>Edit Parameters (Model / Subcomponent)</h2>
+                <form id="parameters-form"></form>
+                <button id="recalculate-button">Submit Parameter Update</button>
+            </section>
+        </div>
+    </div>
+
+    <script src="/src/model_editor.js"></script>
+</body>
+</html>

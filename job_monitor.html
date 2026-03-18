@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Monitor - GalfitS Web</title>
+    <style>
+        :root {
+            --bg: #f4f7f1;
+            --panel: #ffffff;
+            --ink: #20262d;
+            --muted: #667085;
+            --line: #d9e1d5;
+            --ok: #1d8f5a;
+            --warn: #c03b25;
+            --accent: #126a72;
+            --accent-soft: #e0f2f3;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: "Avenir Next", "Segoe UI", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 10% 10%, #fff6d7 0, transparent 26%),
+                radial-gradient(circle at 88% 14%, #def4f7 0, transparent 28%),
+                var(--bg);
+        }
+        .page {
+            max-width: 1280px;
+            margin: 20px auto;
+            padding: 0 14px;
+        }
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            box-shadow: 0 10px 24px rgba(18, 27, 38, 0.08);
+            padding: 16px;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        h1 {
+            margin: 0;
+            font-size: 1.7rem;
+        }
+        .header a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 700;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 220px;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        label {
+            font-weight: 700;
+            color: #374151;
+            font-size: 0.95rem;
+        }
+        input {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 9px 10px;
+            font-family: Menlo, Monaco, Consolas, monospace;
+            font-size: 0.92rem;
+        }
+        .actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        button {
+            border: none;
+            border-radius: 8px;
+            padding: 9px 13px;
+            font-weight: 700;
+            cursor: pointer;
+            background: var(--accent);
+            color: white;
+        }
+        button.secondary {
+            background: #4b5563;
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .summary {
+            font-size: 0.95rem;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+        .layout {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 14px;
+        }
+        .target-list {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            max-height: 580px;
+            overflow: auto;
+            background: #fcfdfb;
+        }
+        .target-item {
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: transparent;
+            color: inherit;
+            padding: 10px 12px;
+            border-bottom: 1px solid #e8ede3;
+            cursor: pointer;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .target-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 200px;
+        }
+        .status-group {
+            display: inline-flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .target-item:hover {
+            background: #f0f8fa;
+        }
+        .target-item.active {
+            background: #e6f6f7;
+        }
+        .status-pill {
+            font-size: 0.78rem;
+            border-radius: 999px;
+            padding: 2px 8px;
+            border: 1px solid transparent;
+            white-space: nowrap;
+        }
+        .finished {
+            color: var(--ok);
+            border-color: #9ce6c4;
+            background: #ecfff5;
+        }
+        .unfinished {
+            color: var(--warn);
+            border-color: #f5ad9f;
+            background: #fff0ec;
+        }
+        .reviewed {
+            color: #0f6b3f;
+            border-color: #b5e8c8;
+            background: #e7f9ed;
+        }
+        .unreviewed {
+            color: #7a3415;
+            border-color: #f3d29c;
+            background: #fff8e7;
+        }
+        .viewer {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 10px;
+            background: #fcfdfb;
+        }
+        .viewer-title {
+            margin: 0 0 10px;
+            font-size: 1.1rem;
+        }
+        .preview-wrap {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            min-height: 260px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8fbff;
+            padding: 8px;
+        }
+        .preview-controls {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        .preview-controls button {
+            padding: 6px 10px;
+            font-size: 0.85rem;
+        }
+        .preview-controls button.active {
+            background: #0f6b3f;
+        }
+        .image-stage {
+            width: 100%;
+            min-height: 260px;
+            max-height: 520px;
+            overflow: hidden;
+            border-radius: 6px;
+            position: relative;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8fbff;
+        }
+        .image-stage.dragging {
+            cursor: grabbing;
+        }
+        .zoom-image {
+            max-width: 100%;
+            max-height: 500px;
+            border-radius: 6px;
+            transform-origin: center center;
+            user-select: none;
+            -webkit-user-drag: none;
+            will-change: transform;
+        }
+        .hint {
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+        .meta {
+            margin-top: 8px;
+            font-size: 0.88rem;
+            color: var(--muted);
+            line-height: 1.45;
+            word-break: break-all;
+        }
+        .comment {
+            margin-top: 12px;
+        }
+        textarea {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            min-height: 90px;
+            resize: vertical;
+            padding: 9px;
+            font-family: inherit;
+        }
+        .status-box {
+            margin-top: 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            display: none;
+            font-size: 0.92rem;
+        }
+        .status-box.ok {
+            background: #e7f9ed;
+            color: #0f6b3f;
+            border: 1px solid #b5e8c8;
+        }
+        .status-box.err {
+            background: #fdebec;
+            color: #8a1f2c;
+            border: 1px solid #f5bbc1;
+        }
+        @media (max-width: 1050px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+            .target-list {
+                max-height: 320px;
+            }
+        }
+        @media (max-width: 780px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <section class="card">
+            <div class="header">
+                <h1>Job Monitor</h1>
+                <a href="/">Back to Tool List</a>
+            </div>
+
+            <div class="form-grid">
+                <div class="field">
+                    <label for="catalogPath">Catalog (.ecsv)</label>
+                    <input id="catalogPath" type="text" placeholder="/Users/liruancun/Works/JWST/JADES/jades_trim.ecsv">
+                </div>
+                <div class="field">
+                    <label for="workspacePath">Workspace Folder</label>
+                    <input id="workspacePath" type="text" placeholder="/Users/liruancun/Works/JWST/JADES/galfits">
+                </div>
+                <div class="field">
+                    <label for="runName">Run</label>
+                    <input id="runName" type="text" placeholder="ssersic">
+                </div>
+            </div>
+
+            <div class="actions">
+                <button id="scanBtn">Scan Jobs</button>
+                <button id="exportBtn" class="secondary" disabled>Output Unfinished</button>
+            </div>
+
+            <div class="summary" id="summaryText">Load catalog + workspace + run, then click "Scan Jobs".</div>
+
+            <div class="layout">
+                <div>
+                    <div class="target-list" id="targetList"></div>
+                </div>
+
+                <div class="viewer">
+                    <h2 class="viewer-title" id="viewerTitle">Target Preview</h2>
+                    <div class="preview-controls">
+                        <button id="zoomInBtn" type="button">Zoom In</button>
+                        <button id="zoomOutBtn" type="button">Zoom Out</button>
+                        <button id="zoomResetBtn" type="button" class="secondary">Reset</button>
+                        <button id="sedBtn" type="button" class="secondary">SED</button>
+                    </div>
+                    <div class="preview-wrap" id="previewWrap">
+                        <div class="hint">Click a target to display image_fit.png.</div>
+                    </div>
+                    <div class="meta" id="targetMeta"></div>
+
+                    <div class="comment">
+                        <label for="commentInput">Comment</label>
+                        <textarea id="commentInput" placeholder="Write a note for this target..."></textarea>
+                        <div class="actions" style="margin-top: 8px; margin-bottom: 0;">
+                            <button id="saveCommentBtn" disabled>Submit Comment</button>
+                        </div>
+                    </div>
+                    <div id="statusBox" class="status-box"></div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="/src/job_monitor.js"></script>
+</body>
+</html>
