@@ -158,6 +158,9 @@ function renderTargetList() {
         if (state.selectedTarget && state.selectedTarget.name === target.name) {
             btn.classList.add('active');
         }
+        if (!target.has_lyric) {
+            btn.classList.add('no-run');
+        }
 
         const left = document.createElement('span');
         left.className = 'target-name';
@@ -167,12 +170,22 @@ function renderTargetList() {
         right.className = 'status-group';
 
         const runStatus = document.createElement('span');
-        runStatus.className = `status-pill ${target.finished ? 'finished' : 'unfinished'}`;
-        runStatus.textContent = target.finished ? 'finished' : 'unfinished';
+        if (!target.has_lyric) {
+            runStatus.className = 'status-pill none';
+            runStatus.textContent = 'none';
+        } else {
+            runStatus.className = `status-pill ${target.finished ? 'finished' : 'unfinished'}`;
+            runStatus.textContent = target.finished ? 'finished' : 'unfinished';
+        }
 
         const reviewStatus = document.createElement('span');
-        reviewStatus.className = `status-pill ${target.reviewed ? 'reviewed' : 'unreviewed'}`;
-        reviewStatus.textContent = target.reviewed ? 'reviewed' : 'unreviewed';
+        if (!target.has_lyric) {
+            reviewStatus.className = 'status-pill none';
+            reviewStatus.textContent = 'n/a';
+        } else {
+            reviewStatus.className = `status-pill ${target.reviewed ? 'reviewed' : 'unreviewed'}`;
+            reviewStatus.textContent = target.reviewed ? 'reviewed' : 'unreviewed';
+        }
 
         right.appendChild(runStatus);
         right.appendChild(reviewStatus);

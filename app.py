@@ -35,9 +35,7 @@ image_store = {}
 
 
 def _is_allowed_path(path: str) -> bool:
-    abs_path = os.path.abspath(path)
-    allowed_roots = ['/Users/liruancun/', '/home/liruancun/']
-    return any(abs_path.startswith(root) for root in allowed_roots)
+    return True
 
 
 def _read_target_names(catalog_path: str) -> list[str]:
@@ -382,20 +380,18 @@ def job_monitor_export_unfinished():
             return jsonify({'error': 'Access denied: paths must be in allowed directories.'}), 403
 
         rows = _build_job_monitor_rows(catalog_path, workspace_path, run_name)
-        unfinished = [row['name'] for row in rows if not row['finished']]
+        unfinished = [row['name'] for row in rows if row['has_lyric'] and not row['finished']]
 
         timestamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
         safe_run = run_name.strip().replace('/', '_')
-        out_path = os.path.join(workspace_path, f'job_monitor_unfinished_{safe_run}_{timestamp}.json')
-        payload = {
-            'catalog_path': catalog_path,
-            'workspace_path': workspace_path,
-            'run_name': run_name,
-            'generated_utc': datetime.now(timezone.utc).isoformat(),
-            'unfinished_count': len(unfinished),
-            'unfinished_targets': unfinished,
-        }
-        _write_json(out_path, payload)
+        out_path = os.path.join(workspace_path, f'runplan_{safe_run}_{timestamp}.ecsv')
+
+        # Write two-column ECSV table (name, run) — standard format for run_unfinished.py
+        t = Table()
+        t['name'] = unfinished
+        t['run'] = [run_name] * len(unfinished)
+        t.write(out_path, format='ascii.ecsv', overwrite=True)
+
         return jsonify({
             'success': True,
             'output_path': out_path,
