@@ -79,6 +79,7 @@ def _build_job_monitor_rows(catalog_path: str, workspace_path: str, run_name: st
         run_dir = os.path.join(target_dir, run_name)
         lyric_path = os.path.join(target_dir, f'{run_name}.lyric')
         summary_path = os.path.join(run_dir, f'{name}.gssummary')
+        params_path = os.path.join(run_dir, f'{name}.params')
         image_fit_path = os.path.join(run_dir, f'{name}image_fit.png')
         sed_model_path = os.path.join(run_dir, f'{name}SED_model.png')
         comment_entry = comments.get(name, {})
@@ -96,6 +97,7 @@ def _build_job_monitor_rows(catalog_path: str, workspace_path: str, run_name: st
             'sed_model_path': sed_model_path,
             'has_lyric': os.path.exists(lyric_path),
             'finished': os.path.exists(summary_path),
+            'has_params': os.path.exists(params_path),
             'reviewed': reviewed,
             'has_image': os.path.exists(image_fit_path),
             'has_sed_model': os.path.exists(sed_model_path),
@@ -401,6 +403,44 @@ def job_monitor_export_unfinished():
         return jsonify({'error': str(e)}), 400
 
 
+@app.route('/job_monitor/export_unimproved', methods=['POST'])
+def job_monitor_export_unimproved():
+    try:
+        data = request.get_json(force=True)
+        catalog_path = os.path.abspath(str(data.get('catalog_path', '')).strip())
+        workspace_path = os.path.abspath(str(data.get('workspace_path', '')).strip())
+        run_name = str(data.get('run_name', '')).strip()
+
+        if not catalog_path or not workspace_path or not run_name:
+            return jsonify({'error': 'catalog_path, workspace_path, and run_name are required.'}), 400
+        if not _is_allowed_path(catalog_path) or not _is_allowed_path(workspace_path):
+            return jsonify({'error': 'Access denied: paths must be in allowed directories.'}), 403
+
+        rows = _build_job_monitor_rows(catalog_path, workspace_path, run_name)
+        # Filter: finished AND reviewed AND comment != 'ok'
+        unimproved = [
+            row['name'] for row in rows 
+            if row['finished'] and row['reviewed'] and row['comment'].lower().strip() != 'ok'
+        ]
+
+        timestamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+        safe_run = run_name.strip().replace('/', '_')
+        out_path = os.path.join(workspace_path, f'runplan_unimproved_{safe_run}_{timestamp}.ecsv')
+
+        t = Table()
+        t['name'] = unimproved
+        t['run'] = [run_name] * len(unimproved)
+        t.write(out_path, format='ascii.ecsv', overwrite=True)
+
+        return jsonify({
+            'success': True,
+            'output_path': out_path,
+            'unimproved_count': len(unimproved),
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
 @app.route('/job_monitor/save_comment', methods=['POST'])
 def job_monitor_save_comment():
     try:
@@ -430,6 +470,30 @@ def job_monitor_save_comment():
             'target_name': target_name,
             'comment': comment,
         })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@app.route('/job_monitor/get_config', methods=['GET'])
+def job_monitor_get_config():
+    config_path = 'job_monitor_config.json'
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return jsonify(json.load(f))
+        except Exception:
+            return jsonify({})
+    return jsonify({})
+
+
+@app.route('/job_monitor/save_config', methods=['POST'])
+def job_monitor_save_config():
+    try:
+        data = request.get_json(force=True)
+        config_path = 'job_monitor_config.json'
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 

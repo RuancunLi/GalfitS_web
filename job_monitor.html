@@ -169,10 +169,20 @@
             border-color: #f5ad9f;
             background: #fff0ec;
         }
+        .ing {
+            color: #126a72;
+            border-color: #9ce2e6;
+            background: #eefcfd;
+        }
         .reviewed {
             color: #0f6b3f;
             border-color: #b5e8c8;
             background: #e7f9ed;
+        }
+        .done {
+            color: #ffffff;
+            border-color: #1d8f5a;
+            background: #1d8f5a;
         }
         .unreviewed {
             color: #7a3415;
@@ -326,7 +336,8 @@
 
             <div class="actions">
                 <button id="scanBtn">Scan Jobs</button>
-                <button id="exportBtn" class="secondary" disabled>Output Unfinished</button>
+                <button id="exportBtn" class="secondary" disabled title="Export sources with no .gssummary">Output Unfinished</button>
+                <button id="exportUnimprovedBtn" class="secondary" disabled title="Export finished/reviewed sources that are NOT 'ok'">Output Unimproved</button>
             </div>
 
             <div class="summary" id="summaryText">Load catalog + workspace + run, then click "Scan Jobs".</div>

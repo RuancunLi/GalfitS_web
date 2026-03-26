@@ -50,6 +50,26 @@ function updateSummaryText(text) {
     document.getElementById('summaryText').textContent = text;
 }
 
+function refreshSummary() {
+    const total = state.targets.length;
+    if (total === 0) {
+        updateSummaryText('Load catalog + workspace + run, then click "Scan Jobs".');
+        document.getElementById('exportBtn').disabled = true;
+        document.getElementById('exportUnimprovedBtn').disabled = true;
+        return;
+    }
+    const unfinished = state.targets.filter(t => !t.finished).length;
+    const finishedTargets = state.targets.filter(t => t.finished);
+    const unreviewed = finishedTargets.filter(t => !t.reviewed).length;
+    const done = finishedTargets.filter(t => t.comment.toLowerCase().trim() === 'ok').length;
+    const toBeImproved = finishedTargets.length - unreviewed - done;
+
+    updateSummaryText(`Loaded ${total} targets. Unfinished: ${unfinished}. Unreviewed: ${unreviewed}. To be improved: ${toBeImproved}. Done: ${done}.`);
+    
+    document.getElementById('exportBtn').disabled = unfinished === 0;
+    document.getElementById('exportUnimprovedBtn').disabled = toBeImproved === 0;
+}
+
 function applyImageTransform() {
     const img = document.getElementById('jobPreviewImage');
     if (!img) return;
@@ -151,7 +171,7 @@ function renderTargetList() {
         return;
     }
 
-    state.targets.forEach((target) => {
+    state.targets.forEach((target, i) => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'target-item';
@@ -164,7 +184,7 @@ function renderTargetList() {
 
         const left = document.createElement('span');
         left.className = 'target-name';
-        left.textContent = target.name;
+        left.textContent = `[${i}] ${target.name}`;
 
         const right = document.createElement('span');
         right.className = 'status-group';
@@ -174,8 +194,16 @@ function renderTargetList() {
             runStatus.className = 'status-pill none';
             runStatus.textContent = 'none';
         } else {
-            runStatus.className = `status-pill ${target.finished ? 'finished' : 'unfinished'}`;
-            runStatus.textContent = target.finished ? 'finished' : 'unfinished';
+            if (target.finished) {
+                runStatus.className = 'status-pill finished';
+                runStatus.textContent = 'finished';
+            } else if (target.has_params) {
+                runStatus.className = 'status-pill ing';
+                runStatus.textContent = 'ing';
+            } else {
+                runStatus.className = 'status-pill unfinished';
+                runStatus.textContent = 'unfinished';
+            }
         }
 
         const reviewStatus = document.createElement('span');
@@ -183,8 +211,14 @@ function renderTargetList() {
             reviewStatus.className = 'status-pill none';
             reviewStatus.textContent = 'n/a';
         } else {
-            reviewStatus.className = `status-pill ${target.reviewed ? 'reviewed' : 'unreviewed'}`;
-            reviewStatus.textContent = target.reviewed ? 'reviewed' : 'unreviewed';
+            const isOk = target.comment.toLowerCase().trim() === 'ok';
+            if (isOk) {
+                reviewStatus.className = 'status-pill done';
+                reviewStatus.textContent = 'done';
+            } else {
+                reviewStatus.className = `status-pill ${target.reviewed ? 'reviewed' : 'unreviewed'}`;
+                reviewStatus.textContent = target.reviewed ? 'reviewed' : 'unreviewed';
+            }
         }
 
         right.appendChild(runStatus);
@@ -234,6 +268,7 @@ async function scanJobs() {
 
     document.getElementById('scanBtn').disabled = true;
     document.getElementById('exportBtn').disabled = true;
+    document.getElementById('exportUnimprovedBtn').disabled = true;
     document.getElementById('saveCommentBtn').disabled = true;
 
     try {
@@ -257,9 +292,7 @@ async function scanJobs() {
         updateModeButtons();
 
         renderTargetList();
-
-        updateSummaryText(`Loaded ${result.total_targets} targets. Unfinished: ${result.unfinished_count}.`);
-        document.getElementById('exportBtn').disabled = false;
+        refreshSummary();
 
         const previewWrap = document.getElementById('previewWrap');
         previewWrap.innerHTML = '<div class="hint">Click a target to display image_fit.png.</div>';
@@ -268,6 +301,7 @@ async function scanJobs() {
         document.getElementById('commentInput').value = '';
 
         showStatus('Job scan completed.');
+        saveCurrentConfig();
     } catch (error) {
         showStatus(error.message, true);
     } finally {
@@ -287,7 +321,8 @@ async function exportUnfinished() {
     const payload = getInputs();
     if (!requireInputs(payload)) return;
 
-    document.getElementById('exportBtn').disabled = true;
+    const btn = document.getElementById('exportBtn');
+    btn.disabled = true;
 
     try {
         const response = await fetch('/job_monitor/export_unfinished', {
@@ -304,7 +339,33 @@ async function exportUnfinished() {
     } catch (error) {
         showStatus(error.message, true);
     } finally {
-        document.getElementById('exportBtn').disabled = false;
+        btn.disabled = false;
+    }
+}
+
+async function exportUnimproved() {
+    const payload = getInputs();
+    if (!requireInputs(payload)) return;
+
+    const btn = document.getElementById('exportUnimprovedBtn');
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/job_monitor/export_unimproved', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || 'Failed to export unimproved targets.');
+        }
+
+        showStatus(`Unimproved targets exported to: ${result.output_path}`);
+    } catch (error) {
+        showStatus(error.message, true);
+    } finally {
+        btn.disabled = false;
     }
 }
 
@@ -341,6 +402,7 @@ async function saveComment() {
         }
 
         renderTargetList();
+        refreshSummary();
 
         showStatus(`Comment saved to: ${result.comments_path}`);
     } catch (error) {
@@ -348,13 +410,42 @@ async function saveComment() {
     }
 }
 
+async function loadLastConfig() {
+    try {
+        const response = await fetch('/job_monitor/get_config');
+        if (!response.ok) return;
+        const config = await response.json();
+        if (config.catalog_path) document.getElementById('catalogPath').value = config.catalog_path;
+        if (config.workspace_path) document.getElementById('workspacePath').value = config.workspace_path;
+        if (config.run_name) document.getElementById('runName').value = config.run_name;
+    } catch (e) {
+        console.error('Failed to load last config:', e);
+    }
+}
+
+async function saveCurrentConfig() {
+    const payload = getInputs();
+    try {
+        await fetch('/job_monitor/save_config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+    } catch (e) {
+        console.error('Failed to save config:', e);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('scanBtn').addEventListener('click', scanJobs);
     document.getElementById('exportBtn').addEventListener('click', exportUnfinished);
+    document.getElementById('exportUnimprovedBtn').addEventListener('click', exportUnimproved);
     document.getElementById('saveCommentBtn').addEventListener('click', saveComment);
     document.getElementById('zoomInBtn').addEventListener('click', () => changeZoom(ZOOM_STEP));
     document.getElementById('zoomOutBtn').addEventListener('click', () => changeZoom(-ZOOM_STEP));
     document.getElementById('zoomResetBtn').addEventListener('click', resetZoomPan);
     document.getElementById('sedBtn').addEventListener('click', toggleSedMode);
+    
     updateModeButtons();
+    loadLastConfig();
 });
